@@ -24,6 +24,10 @@ public class SearchResponse {
         public List<Photo> getPhotos() {
             return photo;
         }
+
+        public int getPage() {
+            return page;
+        }
     }
 
     public static class Photo {

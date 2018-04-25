@@ -3,7 +3,6 @@ package com.ap.flickr;
 import android.os.Bundle;
 import android.support.v7.app.AppCompatActivity;
 import android.support.v7.widget.GridLayoutManager;
-import android.support.v7.widget.LinearLayoutManager;
 import android.support.v7.widget.RecyclerView;
 import android.view.View;
 import android.widget.Button;
@@ -21,6 +20,9 @@ import retrofit2.converter.gson.GsonConverterFactory;
 
 public class MainActivity extends AppCompatActivity {
 
+    private int pageNumber = 1;
+    private PhotListAdapter photListAdapter;
+
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
@@ -34,11 +36,13 @@ public class MainActivity extends AppCompatActivity {
         final FlickrApi flickrApi = retrofit.create(FlickrApi.class);
 
         final EditText editText = findViewById(R.id.edit_text_search);
-        Button button = findViewById(R.id.button_search);
+        Button searchButton = findViewById(R.id.button_search);
+        Button loadButton = findViewById(R.id.button_load_more);
         final RecyclerView recyclerView = findViewById(R.id.recycler_view);
-        recyclerView.setLayoutManager(new GridLayoutManager(this,3));
+        recyclerView.setLayoutManager(new GridLayoutManager(this, 3));
 
-        button.setOnClickListener(new View.OnClickListener() {
+        searchButton.setOnClickListener(new View.OnClickListener() {
+
             @Override
             public void onClick(View v) {
                 String query = editText.getText().toString();
@@ -47,7 +51,28 @@ public class MainActivity extends AppCompatActivity {
                     @Override
                     public void onResponse(Call<SearchResponse> call, Response<SearchResponse> response) {
                         SearchResponse searchResponse = response.body();
-                        recyclerView.setAdapter(new PhotListAdapter(searchResponse.getPhotoDetails().getPhotos(), MainActivity.this));
+                        photListAdapter = new PhotListAdapter(searchResponse.getPhotoDetails().getPhotos(), MainActivity.this);
+                        recyclerView.setAdapter(photListAdapter);
+                    }
+
+                    @Override
+                    public void onFailure(Call<SearchResponse> call, Throwable t) {
+
+                    }
+                });
+            }
+        });
+
+        loadButton.setOnClickListener(new View.OnClickListener() {
+            @Override
+            public void onClick(View view) {
+                String query = editText.getText().toString();
+                Call<SearchResponse> call = flickrApi.loadPhotos(query, ++pageNumber);
+                call.enqueue(new Callback<SearchResponse>() {
+                    @Override
+                    public void onResponse(Call<SearchResponse> call, Response<SearchResponse> response) {
+                        SearchResponse searchResponse = response.body();
+                        photListAdapter.appendPhotos(searchResponse.getPhotoDetails().getPhotos());
                     }
 
                     @Override

@@ -46,6 +46,11 @@ public class PhotListAdapter extends RecyclerView.Adapter {
         return photos.size();
     }
 
+    public void appendPhotos(List<SearchResponse.Photo> photos) {
+        this.photos.addAll(photos);
+        notifyDataSetChanged();
+    }
+
     public static class MyViewHolder extends RecyclerView.ViewHolder {
 
         ImageView imageView;

@@ -14,4 +14,7 @@ public interface FlickrApi {
 
     @GET("services/rest?method=flickr.photos.search&format=json&nojsoncallback=1&api_key=dcbd1fc222381baadd0e02f4406a7166")
     Call<SearchResponse> searchPhotos(@Query("text") String query);
+
+    @GET("services/rest?method=flickr.photos.search&format=json&nojsoncallback=1&api_key=dcbd1fc222381baadd0e02f4406a7166")
+    Call<SearchResponse> loadPhotos(@Query("text") String query, @Query("page") int pageNumber);
 }

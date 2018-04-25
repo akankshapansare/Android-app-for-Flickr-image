@@ -14,6 +14,12 @@
             android:layout_height="40dp"
             android:text="S" />
 
+        <Button
+            android:id="@+id/button_load_more"
+            android:layout_width="40dp"
+            android:layout_height="40dp"
+            android:text="L" />
+
         <EditText
             android:id="@+id/edit_text_search"
             android:layout_width="match_parent"
