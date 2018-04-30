@@ -11,10 +11,14 @@ import android.widget.EditText;
 import com.ap.flickr.adapter.PhotListAdapter;
 import com.ap.flickr.api.FlickrApi;
 import com.ap.flickr.data.SearchResponse;
+import com.jakewharton.retrofit2.adapter.rxjava2.RxJava2CallAdapterFactory;
+import com.jakewharton.rxbinding2.view.RxView;
 
-import retrofit2.Call;
-import retrofit2.Callback;
-import retrofit2.Response;
+import io.reactivex.Single;
+import io.reactivex.android.schedulers.AndroidSchedulers;
+import io.reactivex.disposables.CompositeDisposable;
+import io.reactivex.disposables.Disposable;
+import io.reactivex.schedulers.Schedulers;
 import retrofit2.Retrofit;
 import retrofit2.converter.gson.GsonConverterFactory;
 
@@ -22,6 +26,7 @@ public class MainActivity extends AppCompatActivity {
 
     private int pageNumber = 1;
     private PhotListAdapter photListAdapter;
+    private CompositeDisposable compositeDisposable = new CompositeDisposable();
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -31,6 +36,7 @@ public class MainActivity extends AppCompatActivity {
         Retrofit retrofit = new Retrofit.Builder()
                 .baseUrl("https://api.flickr.com")
                 .addConverterFactory(GsonConverterFactory.create())
+                .addCallAdapterFactory(RxJava2CallAdapterFactory.create())
                 .build();
 
         final FlickrApi flickrApi = retrofit.create(FlickrApi.class);
@@ -41,48 +47,38 @@ public class MainActivity extends AppCompatActivity {
         final RecyclerView recyclerView = findViewById(R.id.recycler_view);
         recyclerView.setLayoutManager(new GridLayoutManager(this, 3));
 
-        searchButton.setOnClickListener(new View.OnClickListener() {
-
-            @Override
-            public void onClick(View v) {
-                String query = editText.getText().toString();
-                Call<SearchResponse> call = flickrApi.searchPhotos(query);
-                call.enqueue(new Callback<SearchResponse>() {
-                    @Override
-                    public void onResponse(Call<SearchResponse> call, Response<SearchResponse> response) {
-                        SearchResponse searchResponse = response.body();
-                        photListAdapter = new PhotListAdapter(searchResponse.getPhotoDetails().getPhotos(), MainActivity.this);
-                        recyclerView.setAdapter(photListAdapter);
-                    }
-
-                    @Override
-                    public void onFailure(Call<SearchResponse> call, Throwable t) {
-
-                    }
-                });
-            }
-        });
+        compositeDisposable.add(
+                RxView.clicks(searchButton)
+                        .subscribeOn(AndroidSchedulers.mainThread())
+                        .observeOn(Schedulers.io())
+                        .flatMapSingle((view) -> {
+                            String query = editText.getText().toString();
+                            return flickrApi.searchPhotos(query);
+                        })
+                        .observeOn(AndroidSchedulers.mainThread())
+                        .subscribe((searchResponse) -> {
+                            photListAdapter = new PhotListAdapter(searchResponse.getPhotoDetails().getPhotos(), MainActivity.this);
+                            recyclerView.setAdapter(photListAdapter);
+                        }));
 
         loadButton.setOnClickListener(new View.OnClickListener() {
             @Override
             public void onClick(View view) {
                 String query = editText.getText().toString();
-                Call<SearchResponse> call = flickrApi.loadPhotos(query, ++pageNumber);
-                call.enqueue(new Callback<SearchResponse>() {
-                    @Override
-                    public void onResponse(Call<SearchResponse> call, Response<SearchResponse> response) {
-                        SearchResponse searchResponse = response.body();
-                        photListAdapter.appendPhotos(searchResponse.getPhotoDetails().getPhotos());
-                    }
+                Single<SearchResponse> single = flickrApi.loadPhotos(query, ++pageNumber);
+                Disposable disposable = single.subscribeOn(Schedulers.io())
+                        .observeOn(AndroidSchedulers.mainThread())
+                        .subscribe((searchResponse) -> photListAdapter.appendPhotos(searchResponse.getPhotoDetails().getPhotos()));
 
-                    @Override
-                    public void onFailure(Call<SearchResponse> call, Throwable t) {
+                compositeDisposable.add(disposable);
 
-                    }
-                });
             }
         });
+    }
 
-
+    @Override
+    protected void onDestroy() {
+        compositeDisposable.dispose();
+        super.onDestroy();
     }
 }
